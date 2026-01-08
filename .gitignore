@@ -1,0 +1,9 @@
+# filepath: /home/joyce/Desktop/roi_x265_encoder/.gitignore
+out.hevc
+*.o
+*.obj
+*.exe
+build/
+*.log
+*.so
+*.a
