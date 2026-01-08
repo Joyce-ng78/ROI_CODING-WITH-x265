@@ -64,12 +64,16 @@ int main(int argc, char **argv)
             &pic_out
         );
 
-        for (uint32_t i = 0; i < num_nals; i++)
-            fwrite(nals[i].payload, 1,
-                   nals[i].sizeBytes, fout);
+        while (x265_encoder_encode(encoder, &nals, &num_nals, NULL, &pic_out)) {
+            for (uint32_t i = 0; i < num_nals; i++) {
+                fwrite(nals[i].payload, 1, nals[i].sizeBytes, fout);
+            }
+        }
+        if (pic.quantOffsets) {
+            free(pic.quantOffsets);
+            pic.quantOffsets = NULL;
+        }
 
-        free(pic.quantOffsets);
-        pic.quantOffsets = NULL;
 
         frame++;
     }
