@@ -34,10 +34,10 @@ void apply_roi_qp(
             for (int i = 0; i < num_rois; i++) {
                 if (overlap(
                         x1, y1, x2, y2,
-                        rois[i].x,
-                        rois[i].y,
-                        rois[i].x + rois[i].w,
-                        rois[i].y + rois[i].h)) {
+                        rois[i].x1,
+                        rois[i].y1,
+                        rois[i].x2,
+                        rois[i].y2)) {
                     qp = -6.0f; // ROI
                     break;
                 }

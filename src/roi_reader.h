@@ -5,8 +5,7 @@
 
 int load_roi_txt(
     const char *filename,
-    ROI *rois,
-    int max_roi
+    ROI *rois
 );
 
 #endif

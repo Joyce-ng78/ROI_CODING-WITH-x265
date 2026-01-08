@@ -4,10 +4,10 @@
 #include <x265.h>
 
 typedef struct {
-    int x;
-    int y;
-    int w;
-    int h;
+    int x1;
+    int y1;
+    int x2;
+    int y2;
 } ROI;
 
 void apply_roi_qp(

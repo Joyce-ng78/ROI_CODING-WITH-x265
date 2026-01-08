@@ -5,14 +5,14 @@
 #include "roi_reader.h"
 #include "yuv_reader.h"
 
-#define MAX_ROI 32
+#define MAX_ROI 50
 
 int main(int argc, char **argv)
 {
-    int width = 1920;
-    int height = 1080;
+    int width = 832;
+    int height = 480;
 
-    FILE *fyuv = fopen("input.yuv", "rb");
+    FILE *fyuv = fopen("input_yuv/BasketballDrill_832x480_15.yuv", "rb");
     FILE *fout = fopen("out.hevc", "wb");
 
     x265_param *param = x265_param_alloc();
@@ -21,6 +21,8 @@ int main(int argc, char **argv)
     param->sourceWidth  = width;
     param->sourceHeight = height;
     param->rc.rateControlMode = X265_RC_CRF;
+    param->fpsNum=15;
+    param->fpsDenom=1;
     //param->rc.qpOffsets = 1;
     param->lookaheadDepth = 0;
     param->bframes = 0;
@@ -42,8 +44,7 @@ int main(int argc, char **argv)
         char roi_file[256];
         sprintf(roi_file, "roi/frame_%04d.txt", frame);
 
-        int num_rois =
-            load_roi_txt(roi_file, rois, MAX_ROI);
+        int num_rois = load_roi_txt(roi_file, rois);
 
         apply_roi_qp(
             &pic,
