@@ -24,6 +24,14 @@ static int get_arg_int(int argc, char **argv, const char *key, int def)
     return v ? atoi(v) : def;
 }
 
+static int get_arg_bool(int argc, char **argv, const char *key, int def)
+{
+    const char *v = get_arg(argc, argv, key);
+    if (!v)
+        return def;
+    return atoi(v) != 0;
+}
+
 static void print_usage(const char *prog)
 {
     printf(
@@ -37,7 +45,8 @@ static void print_usage(const char *prog)
         "  --height    frame height\n"
         "  --fps       frame rate (default: 30)\n"
         "  --qp        base QP (default: 28)\n"
-        "  --roi-dir   ROI directory (frame_XXXX.txt)\n",
+        "  --roi-dir   ROI directory (frame_XXXX.txt)\n"
+        "  --enable-roi  apply ROI (1=on, 0=off, default: 1)\n",
         prog
     );
 }
@@ -57,6 +66,7 @@ int main(int argc, char **argv)
     int height = get_arg_int(argc, argv, "--height", 480);
     int fps    = get_arg_int(argc, argv, "--fps",    30);
     int qp     = get_arg_int(argc, argv, "--qp",     27);
+        int enable_roi = get_arg_bool(argc, argv, "--enable-roi", 1);
 
     FILE *fyuv = fopen(input, "rb");
     FILE *fout = fopen(output, "wb");
@@ -135,36 +145,42 @@ int main(int argc, char **argv)
     int frame = 0;
     while (read_yuv_frame(fyuv, &pic, width, height)) {
 
-        ROI rois[MAX_ROI];
-        char roi_file[256];
-        snprintf(roi_file, sizeof(roi_file),
-                 "%s/frame_%04d_roi.txt", roi_dir, frame);
-        int num_rois = load_roi_txt(roi_file, rois);
+        if (enable_roi) {
+            ROI rois[MAX_ROI];
+            char roi_file[256];
 
-        apply_roi_qp(
-            &pic,
-            rois,
-            num_rois,
-            param->maxCUSize
-        );
+            snprintf(roi_file, sizeof(roi_file),
+                    "%s/frame_%04d_roi.txt", roi_dir, frame);
 
-        int ctu_size = param->maxCUSize;
-        int ctu_cols = (width  + ctu_size - 1) / ctu_size;
-        int ctu_rows = (height + ctu_size - 1) / ctu_size;
+            int num_rois = load_roi_txt(roi_file, rois);
 
-        printf("Frame %d: QP offset map (%dx%d CTUs with CTU_size %d)\n",
-            frame, ctu_rows, ctu_cols, ctu_size);
-        int base_qp = param->rc.qp;
+            if (num_rois > 0) {
+                apply_roi_qp(
+                    &pic,
+                    rois,
+                    num_rois,
+                    param->maxCUSize
+                );
+            }
+        }
 
-        for (int r = 0; r < ctu_rows; r++) {
-            for (int c = 0; c < ctu_cols; c++) {
-                int idx = r * ctu_cols + c;
-                float qpo = pic.quantOffsets ? pic.quantOffsets[idx] : 0.0;
-                printf("%6.1f ", qpo);
+        if (enable_roi && pic.quantOffsets) {
+            int ctu_size = param->maxCUSize;
+            int ctu_cols = (width  + ctu_size - 1) / ctu_size;
+            int ctu_rows = (height + ctu_size - 1) / ctu_size;
+
+            printf("Frame %d: QP offset map (%dx%d CTUs)\n",
+                frame, ctu_rows, ctu_cols);
+
+            for (int r = 0; r < ctu_rows; r++) {
+                for (int c = 0; c < ctu_cols; c++) {
+                    int idx = r * ctu_cols + c;
+                    printf("%6.1f ", pic.quantOffsets[idx]);
+                }
+                printf("\n");
             }
             printf("\n");
         }
-        printf("\n");
 
         x265_nal *nals;
         uint32_t num_nals;
