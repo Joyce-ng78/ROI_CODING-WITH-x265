@@ -82,6 +82,8 @@ int main(int argc, char **argv)
     param->bframes = 0;
     param->lookaheadDepth = 0;
     param->bAnnexB = 1;
+    param->logLevel = X265_LOG_DEBUG;
+    /* ---------------- x265 encoder ---------------- */
     x265_encoder *encoder = x265_encoder_open(param);
     if (!encoder) {
         fprintf(stderr, "x265_encoder_open failed\n");
@@ -104,6 +106,8 @@ int main(int argc, char **argv)
     x265_picture pic_out;
     x265_picture_init(param, &pic);
 
+    pic.width  = width;
+    pic.height = height;
     pic.stride[0] = width;
     pic.stride[1] = width / 2;
     pic.stride[2] = width / 2;
@@ -119,7 +123,7 @@ int main(int argc, char **argv)
         ROI rois[MAX_ROI];
         char roi_file[256];
         snprintf(roi_file, sizeof(roi_file),
-                 "%s/frame_%04d.txt", roi_dir, frame);
+                 "%s/frame_%04d_roi.txt", roi_dir, frame);
         int num_rois = load_roi_txt(roi_file, rois);
 
         apply_roi_qp(
@@ -128,6 +132,26 @@ int main(int argc, char **argv)
             num_rois,
             param->maxCUSize
         );
+
+        int ctu_size = param->maxCUSize;
+        int ctu_cols = (width  + ctu_size - 1) / ctu_size;
+        int ctu_rows = (height + ctu_size - 1) / ctu_size;
+
+        printf("Frame %d: QP offset map (%dx%d CTUs with CTU_size %d)\n",
+            frame, ctu_rows, ctu_cols, ctu_size);
+        int base_qp = param->rc.qp;
+
+        for (int r = 0; r < ctu_rows; r++) {
+            for (int c = 0; c < ctu_cols; c++) {
+                int idx = r * ctu_cols + c;
+                float qpo = pic.quantOffsets ? pic.quantOffsets[idx] : 0.0;
+                float final_qp = base_qp + qpo;
+
+                printf("%6.1f ", final_qp);
+            }
+            printf("\n");
+        }
+        printf("\n");
 
         x265_nal *nals;
         uint32_t num_nals;

@@ -1,5 +1,6 @@
 #include "roi.h"
 #include <stdlib.h>
+#include <string.h>
 
 static int overlap(
     int ax1, int ay1, int ax2, int ay2,
@@ -15,12 +16,14 @@ void apply_roi_qp(
     int num_rois,
     int ctu_size)
 {
-    int ctu_cols = (pic->width  + ctu_size - 1) / ctu_size;
-    int ctu_rows = (pic->height + ctu_size - 1) / ctu_size;
+    int width  = pic->width;
+    int height = pic->height;
 
-    pic->quantOffsets =
-        (float*)malloc(ctu_cols * ctu_rows * sizeof(float));
+    int ctu_cols = (width  + ctu_size - 1) / ctu_size;
+    int ctu_rows = (height + ctu_size - 1) / ctu_size;
 
+    pic->quantOffsets = (float*)malloc(ctu_cols * ctu_rows * sizeof(float));
+    memset(pic->quantOffsets, 0, ctu_cols * ctu_rows * sizeof(float));
     for (int r = 0; r < ctu_rows; r++) {
         for (int c = 0; c < ctu_cols; c++) {
 
@@ -30,7 +33,6 @@ void apply_roi_qp(
             int y2 = y1 + ctu_size;
 
             float qp = +3.0f; // background
-
             for (int i = 0; i < num_rois; i++) {
                 if (overlap(
                         x1, y1, x2, y2,
@@ -38,7 +40,7 @@ void apply_roi_qp(
                         rois[i].y1,
                         rois[i].x2,
                         rois[i].y2)) {
-                    qp = -3.0f; // ROI
+                    qp = -12.0f; // ROI
                     break;
                 }
             }
