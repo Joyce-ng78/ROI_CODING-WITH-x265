@@ -29,7 +29,7 @@ void apply_roi_qp(
             int x2 = x1 + ctu_size;
             int y2 = y1 + ctu_size;
 
-            float qp = +4.0f; // background
+            float qp = +3.0f; // background
 
             for (int i = 0; i < num_rois; i++) {
                 if (overlap(
@@ -38,7 +38,7 @@ void apply_roi_qp(
                         rois[i].y1,
                         rois[i].x2,
                         rois[i].y2)) {
-                    qp = -6.0f; // ROI
+                    qp = -3.0f; // ROI
                     break;
                 }
             }
