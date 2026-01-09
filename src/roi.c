@@ -40,7 +40,7 @@ void apply_roi_qp(
                         rois[i].y1,
                         rois[i].x2,
                         rois[i].y2)) {
-                    qp = -12.0f; // ROI
+                    qp = -3.0f; // ROI
                     break;
                 }
             }

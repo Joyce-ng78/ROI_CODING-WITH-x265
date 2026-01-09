@@ -77,10 +77,25 @@ int main(int argc, char **argv)
 
     param->rc.rateControlMode = X265_RC_CQP;
     param->rc.qp = qp;
-    // param->rc.qpOffsets = 1;
-
+    
+    /* ---------------- intra mode ---------------- */
     param->bframes = 0;
     param->lookaheadDepth = 0;
+    // param->keyframeMax = 1;
+    // param->keyframeMin = 0;
+    // param->scenecutThreshold = 0;  // optional nhưng nên có
+    // param->bIntraRefresh = 0;
+    // param->bOpenGOP = 0;
+    // param->bRepeatHeaders = 1;
+
+    
+
+    // param->maxNumReferences = 0;
+    // param->frameNumThreads = 1;
+    
+
+    /* ---------------- write header ---------------- */
+
     param->bAnnexB = 1;
     param->logLevel = X265_LOG_DEBUG;
     /* ---------------- x265 encoder ---------------- */
@@ -102,9 +117,9 @@ int main(int argc, char **argv)
 
     /* ---------------- picture ---------------- */
 
-    x265_picture pic;
-    x265_picture pic_out;
+    x265_picture pic, pic_out;
     x265_picture_init(param, &pic);
+    x265_picture_init(param, &pic_out);
 
     pic.width  = width;
     pic.height = height;
@@ -145,9 +160,7 @@ int main(int argc, char **argv)
             for (int c = 0; c < ctu_cols; c++) {
                 int idx = r * ctu_cols + c;
                 float qpo = pic.quantOffsets ? pic.quantOffsets[idx] : 0.0;
-                float final_qp = base_qp + qpo;
-
-                printf("%6.1f ", final_qp);
+                printf("%6.1f ", qpo);
             }
             printf("\n");
         }
@@ -167,6 +180,10 @@ int main(int argc, char **argv)
         for (uint32_t i = 0; i < num_nals; i++) {
             fwrite(nals[i].payload, 1, nals[i].sizeBytes, fout);
         }
+        // if (num_nals > 0) {
+        //     for (uint32_t i = 0; i < num_nals; i++)
+        //         fwrite(nals[i].payload, 1, nals[i].sizeBytes, fout);
+        // }
 
         if (pic.quantOffsets) {
             free(pic.quantOffsets);
@@ -176,8 +193,6 @@ int main(int argc, char **argv)
         frame++;
     }
     
-    // x265_nal *nals;
-    // uint32_t num_nals;
     /* ---------------- flush ---------------- */
 
     while (x265_encoder_encode(encoder, &nals, &num_nals, NULL, &pic_out)) {
