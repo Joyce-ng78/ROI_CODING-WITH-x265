@@ -37,7 +37,8 @@ static void print_usage(const char *prog)
     printf(
         "Usage:\n"
         "  %s --input in.yuv --output out.hevc \\\n"
-        "     --width W --height H --fps FPS --qp QP --roi-dir DIR\n\n"
+        "     --width W --height H --fps FPS --qp QP --roi-dir DIR \\\n"
+        "     --enable-roi 1  --print-log 0\n\n"
         "Options:\n"
         "  --input     input YUV420p file\n"
         "  --output    output HEVC bitstream\n"
@@ -46,7 +47,8 @@ static void print_usage(const char *prog)
         "  --fps       frame rate (default: 30)\n"
         "  --qp        base QP (default: 28)\n"
         "  --roi-dir   ROI directory (frame_XXXX.txt)\n"
-        "  --enable-roi  apply ROI (1=on, 0=off, default: 1)\n",
+        "  --enable-roi  apply ROI (1=on, 0=off, default: 1)\n"
+        "  --print-log      print log (1=on, 0=off, default: 0) \n",
         prog
     );
 }
@@ -66,7 +68,8 @@ int main(int argc, char **argv)
     int height = get_arg_int(argc, argv, "--height", 480);
     int fps    = get_arg_int(argc, argv, "--fps",    30);
     int qp     = get_arg_int(argc, argv, "--qp",     27);
-        int enable_roi = get_arg_bool(argc, argv, "--enable-roi", 1);
+    int enable_roi = get_arg_bool(argc, argv, "--enable-roi", 1);
+    int print_log = get_arg_bool(argc, argv, "--print-log", 0);
 
     FILE *fyuv = fopen(input, "rb");
     FILE *fout = fopen(output, "wb");
@@ -164,7 +167,7 @@ int main(int argc, char **argv)
             }
         }
 
-        if (enable_roi && pic.quantOffsets) {
+        if (enable_roi && pic.quantOffsets && print_log) {
             int ctu_size = param->maxCUSize;
             int ctu_cols = (width  + ctu_size - 1) / ctu_size;
             int ctu_rows = (height + ctu_size - 1) / ctu_size;
