@@ -113,10 +113,9 @@ This defines two ROI regions in the frame.
 ## Encoder Configuration
 
 The encoder uses the following x265 configuration:
-- **Preset**: `veryfast` (optimized for speed)
-- **Tune**: `psnr` (optimized for PSNR quality metric)
 - **Rate Control**: CRF (Constant Rate Factor) mode
 - **AQ Mode**: 1 (enabled with 0.0 strength)
 - **CU Tree**: Enabled
 - **QG Size**: 16x16 pixels
+
 
