@@ -70,7 +70,7 @@ int main(int argc, char **argv)
     int qp     = get_arg_int(argc, argv, "--qp",     27);
     int enable_roi = get_arg_bool(argc, argv, "--enable-roi", 1);
     int print_log = get_arg_bool(argc, argv, "--print-log", 0);
-
+    printf("enable roi: %d\n", enable_roi);
     FILE *fyuv = fopen(input, "rb");
     FILE *fout = fopen(output, "wb");
     if (!fyuv || !fout) {
@@ -82,6 +82,7 @@ int main(int argc, char **argv)
 
     x265_param *param = x265_param_alloc();
     x265_param_default(param);
+    x265_param_default_preset(param, "veryfast", "psnr");
 
     param->sourceWidth  = width;
     param->sourceHeight = height;
@@ -90,10 +91,21 @@ int main(int argc, char **argv)
 
     param->rc.rateControlMode = X265_RC_CQP;
     param->rc.qp = qp;
-    
+    param->rc.aqMode = 1;
+    param->rc.aqStrength = 0.0f; 
+    param->rc.qgSize = 16;
+    param->rc.cuTree = 1;
+    // strncpy(param->analysisLoad, "analysis.dat", X265_MAX_STRING_SIZE);
+    // param->analysisLoad[X265_MAX_STRING_SIZE-1] = '\0';  // đảm bảo null-terminated
+
+    // strncpy(param->analysisSave, "analysis.dat", X265_MAX_STRING_SIZE);
+    // param->analysisSave[X265_MAX_STRING_SIZE-1] = '\0';
+    // param->analysisLoadReuseLevel = 1;  // sử dụng dữ liệu phân tích đã lưu
     /* ---------------- intra mode ---------------- */
-    param->bframes = 0;
-    param->lookaheadDepth = 0;
+    // param->bframes = 0;
+    // param->lookaheadDepth = 1;
+    // param->lookaheadSlices = 1;
+    
     // param->keyframeMax = 1;
     // param->keyframeMin = 0;
     // param->scenecutThreshold = 0;  // optional nhưng nên có
@@ -110,7 +122,32 @@ int main(int argc, char **argv)
     /* ---------------- write header ---------------- */
 
     param->bAnnexB = 1;
-    param->logLevel = X265_LOG_DEBUG;
+    param->logLevel = X265_LOG_FULL;
+    printf("===== x265 params =====\n");
+    printf("Resolution      : %dx%d\n", param->sourceWidth, param->sourceHeight);
+    printf("FPS             : %d/%d\n", param->fpsNum, param->fpsDenom);
+
+    printf("RC mode         : %d (CQP=%d)\n",
+        param->rc.rateControlMode, X265_RC_CQP);
+    printf("QP              : %d\n", param->rc.qp);
+
+    printf("AQ mode         : %d\n", param->rc.aqMode);
+    printf("AQ strength     : %.2f\n", param->rc.aqStrength);
+    printf("CU Tree         : %d\n", param->rc.cuTree);
+    printf("QG size         : %d\n", param->rc.qgSize);
+
+    printf("B-frames        : %d\n", param->bframes);
+    printf("Lookahead depth : %d\n", param->lookaheadDepth);
+
+    printf("AnnexB          : %d\n", param->bAnnexB);
+    printf("Log level       : %d\n", param->logLevel);
+    printf("========================\n");
+
+    /* ---------------- analysis ---------------- */
+    // x265_analysis_data analysis;
+    // // x265_analysis_data_init(&analysis);
+    // x265_alloc_analysis_data(param, &analysis);
+    
     /* ---------------- x265 encoder ---------------- */
     x265_encoder *encoder = x265_encoder_open(param);
     if (!encoder) {
@@ -133,7 +170,7 @@ int main(int argc, char **argv)
     x265_picture pic, pic_out;
     x265_picture_init(param, &pic);
     x265_picture_init(param, &pic_out);
-
+    // pic.analysisData = analysis;
     pic.width  = width;
     pic.height = height;
     pic.stride[0] = width;
@@ -147,7 +184,10 @@ int main(int argc, char **argv)
     /* ---------------- encode loop ---------------- */
     int frame = 0;
     while (read_yuv_frame(fyuv, &pic, width, height)) {
+        // printf("params rc.aqMode=%d rc.aqStrength=%f rc.qgSize=%d\n", param->rc.aqMode, param->rc.aqStrength, param->rc.qgSize);
 
+        pic.pts = (int64_t)frame;
+        pic.quantOffsets = NULL;
         if (enable_roi) {
             ROI rois[MAX_ROI];
             char roi_file[256];
@@ -156,7 +196,6 @@ int main(int argc, char **argv)
                     "%s/frame_%04d_roi.txt", roi_dir, frame);
 
             int num_rois = load_roi_txt(roi_file, rois);
-
             if (num_rois > 0) {
                 apply_roi_qp(
                     &pic,
@@ -165,25 +204,33 @@ int main(int argc, char **argv)
                     param->maxCUSize
                 );
             }
+            // Debug Log
+            if (pic.quantOffsets && print_log) {
+                printf("Frame %d: Sending %d roi with quantOffsets to encoder...\n", frame, num_rois);
+                // (Giữ nguyên đoạn code print map của bạn ở đây nếu muốn)
+            }
         }
 
         if (enable_roi && pic.quantOffsets && print_log) {
-            int ctu_size = param->maxCUSize;
-            int ctu_cols = (width  + ctu_size - 1) / ctu_size;
-            int ctu_rows = (height + ctu_size - 1) / ctu_size;
+            int qgSize = param->maxCUSize; // Dùng 16 thay vì maxCUSize
+            int qg_cols = (width  + qgSize - 1) / qgSize;
+            int qg_rows = (height + qgSize - 1) / qgSize;
 
-            printf("Frame %d: QP offset map (%dx%d CTUs)\n",
-                frame, ctu_rows, ctu_cols);
+            printf("Frame %d: QP offset map (%dx%d Blocks of 16x16)\n", frame, qg_rows, qg_cols);
 
-            for (int r = 0; r < ctu_rows; r++) {
-                for (int c = 0; c < ctu_cols; c++) {
-                    int idx = r * ctu_cols + c;
-                    printf("%6.1f ", pic.quantOffsets[idx]);
-                }
-                printf("\n");
-            }
+            // for (int r = 0; r < qg_rows; r++) {
+            //     for (int c = 0; c < qg_cols; c++) {
+            //         int idx = r * qg_cols + c;
+            //         // Lưu ý: Giá trị âm = Giảm QP (Nét hơn), Dương = Tăng QP (Mờ hơn)
+            //         printf("%4.1f ", pic.quantOffsets[idx]); 
+            //     }
+            //     printf("\n");
+            // }
             printf("\n");
         }
+
+        // x265_alloc_analysis_data(param, &analysis);
+        printf("aqmode %d pic quantOffsets", param->rc.aqMode);
 
         x265_nal *nals;
         uint32_t num_nals;
@@ -222,12 +269,15 @@ int main(int argc, char **argv)
     
     /* ---------------- cleanup ---------------- */
 
-    free(pic.planes[0]);
-    free(pic.planes[1]);
-    free(pic.planes[2]);
+    // free(pic.planes[0]);
+    // free(pic.planes[1]);
+    // free(pic.planes[2]);
 
     x265_encoder_close(encoder);
     x265_param_free(param);
+    // x265_picture_free(&pic);
+    // x265_picture_free(&pic_out);
+    // free(nals);
     fclose(fyuv);
     fclose(fout);
     return 0;
