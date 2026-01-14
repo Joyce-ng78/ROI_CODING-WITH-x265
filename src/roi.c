@@ -14,23 +14,23 @@ void apply_roi_qp(
     x265_picture *pic,
     ROI *rois,
     int num_rois,
-    int ctu_size)
+    int block_size)
 {
     int width  = pic->width;
     int height = pic->height;
 
-    int ctu_cols = (width  + ctu_size - 1) / ctu_size;
-    int ctu_rows = (height + ctu_size - 1) / ctu_size;
+    int block_cols = (width  + block_size - 1) / block_size;
+    int block_rows = (height + block_size - 1) / block_size;
 
-    pic->quantOffsets = (float*)malloc(ctu_cols * ctu_rows * sizeof(float));
-    memset(pic->quantOffsets, 0, ctu_cols * ctu_rows * sizeof(float));
-    for (int r = 0; r < ctu_rows; r++) {
-        for (int c = 0; c < ctu_cols; c++) {
+    pic->quantOffsets = (float*)malloc(block_cols * block_rows * sizeof(float));
+    memset(pic->quantOffsets, 0, block_cols * block_rows * sizeof(float));
+    for (int r = 0; r < block_rows; r++) {
+        for (int c = 0; c < block_cols; c++) {
 
-            int x1 = c * ctu_size;
-            int y1 = r * ctu_size;
-            int x2 = x1 + ctu_size;
-            int y2 = y1 + ctu_size;
+            int x1 = c * block_size;
+            int y1 = r * block_size;
+            int x2 = x1 + block_size;
+            int y2 = y1 + block_size;
 
             float qp = +3.0f; // background
             for (int i = 0; i < num_rois; i++) {
@@ -45,7 +45,7 @@ void apply_roi_qp(
                 }
             }
 
-            pic->quantOffsets[r * ctu_cols + c] = qp;
+            pic->quantOffsets[r * block_cols + c] = qp;
         }
     }
 }

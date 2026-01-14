@@ -199,7 +199,7 @@ int main(int argc, char **argv)
         if (enable_roi)
         {
             ROI rois[MAX_ROI];
-            char roi_file[256];
+            char roi_file[1024];
 
             snprintf(roi_file, sizeof(roi_file),
                      "%s/frame_%04d_roi.txt", roi_dir, frame);
@@ -223,7 +223,7 @@ int main(int argc, char **argv)
 
         if (enable_roi && pic.quantOffsets && print_log)
         {
-            int qgSize = param->maxCUSize; // Dùng 16 thay vì maxCUSize
+            int qgSize = param->rc.qgSize; // Dùng 16 thay vì maxCUSize
             int qg_cols = (width + qgSize - 1) / qgSize;
             int qg_rows = (height + qgSize - 1) / qgSize;
 
