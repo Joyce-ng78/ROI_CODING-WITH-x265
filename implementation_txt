@@ -1,6 +1,12 @@
 
-roi folder for each methods is placed in the root folder with the structure:
+roi  and yuv folder for each methods is placed in the root folder with the structure:
 
+input_yuv/
+    class_B/
+        sequence/
+            ...
+
+            
 roi/
     method_roi_1/
         sequece/
