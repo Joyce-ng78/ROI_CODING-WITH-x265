@@ -4,4 +4,4 @@
 --fps 15 --qp 42 --roi-dir roi \
 --enable-roi 0 --print-log 1 >logs/encode_nonroi.txt 2>&1 \
 &&
-./TAppDecoderStatic -b output/out_roi.hevc -o output/out_nonroi.yuv >logs/nonroi.txt 2>&1
+./TAppDecoderStatic -b output/out_nonroi.hevc -o output/out_nonroi.yuv >logs/nonroi.txt 2>&1
