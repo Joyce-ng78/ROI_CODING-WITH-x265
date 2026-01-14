@@ -1,0 +1,18 @@
+
+roi folder for each methods is placed in the root folder with the structure:
+
+roi/
+    method_roi_1/
+        sequece/
+            frame_0000_roi.txt
+            frame_0001_roi.txt
+            frame_0002_roi.txt
+            ...
+    
+        ...
+    method_roi_2/
+
+the code to encode all methods is placed in run_files/encode.sh with format:
+
+python run_files/encode.sh --mode saliency --qp 32 
+
