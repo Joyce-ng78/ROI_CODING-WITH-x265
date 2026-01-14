@@ -1,0 +1,1 @@
+python run_files/extract_roi_yolo.py --input /home/joyce/Desktop/video_coding/roi_x265_encoder/run_files/BasketballDrive_1920x1080_100.yuv --width 1920 --height 1080 --frames 100 --start 1 --outdir roi
