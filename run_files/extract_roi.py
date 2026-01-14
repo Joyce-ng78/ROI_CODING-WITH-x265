@@ -161,7 +161,7 @@ def main():
                 rois = merge_overlapping_rois(rois)
 
                 os.makedirs(os.path.join(args.out, args.mode, file_name), exist_ok=True)
-                out_file = os.path.join(args.out, args.mode, file_name, f"frame_{idx:04d}.txt")
+                out_file = os.path.join(args.out, args.mode, file_name, f"frame_{idx:04d}_roi.txt")
                 with open(out_file, "w") as f:
                     # f.write(f"{len(rois)}\n")
                     for x1,y1,x2,y2 in rois:

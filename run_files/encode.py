@@ -11,7 +11,7 @@ from tqdm import tqdm
 def main():
     ap = argparse.ArgumentParser()
 
-    ap.add_argument("--mode", choices=["motion","saliency","fused"], required=True)
+    ap.add_argument("--mode", type=str, default='motion', help='ROI method')
     ap.add_argument("--out", default="output", help="Output directory")
     ap.add_argument("--qp", type=int, default=32, help="QP value for encoding")
     args = ap.parse_args()
