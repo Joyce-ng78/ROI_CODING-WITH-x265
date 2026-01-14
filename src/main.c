@@ -241,7 +241,7 @@ int main(int argc, char **argv)
         }
 
         // x265_alloc_analysis_data(param, &analysis);
-        printf("aqmode %d pic quantOffsets", param->rc.aqMode);
+        // printf("aqmode %d pic quantOffsets", param->rc.aqMode);
 
         x265_nal *nals;
         uint32_t num_nals;
