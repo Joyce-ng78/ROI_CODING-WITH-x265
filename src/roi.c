@@ -10,6 +10,32 @@ static int overlap(
              ay2 <= by1 || ay1 >= by2);
 }
 
+static float allocateQPOffset(
+    ROI *rois,
+    int num_rois,
+    int width, 
+    int height
+) {
+    int ROI_square = 0;
+
+    for (int i = 0; i < num_rois; i++) {
+        ROI_square += 
+            abs(rois[i].x2 - rois[i].x1) *
+            abs(rois[i].y2 - rois[i].y1);
+    }
+
+    int total_square = width * height;
+    float roi_rate = (float)ROI_square / (float)total_square;
+
+    if (roi_rate < 0.3f)
+        return 1.0f;
+    else if (roi_rate >= 0.3f && roi_rate < 0.7f)
+        return 2.0f;
+    else
+        return 3.0f;
+}
+
+
 void apply_roi_qp(
     x265_picture *pic,
     ROI *rois,
@@ -22,8 +48,10 @@ void apply_roi_qp(
     int block_cols = (width  + block_size - 1) / block_size;
     int block_rows = (height + block_size - 1) / block_size;
 
-    pic->quantOffsets = (float*)malloc(block_cols * block_rows * sizeof(float));
-    memset(pic->quantOffsets, 0, block_cols * block_rows * sizeof(float));
+    // pic->quantOffsets = (float*)malloc(block_cols * block_rows * sizeof(float));
+    if (pic->quantOffsets == NULL) return;
+    // memset(pic->quantOffsets, 0, block_cols * block_rows * sizeof(float));
+    float qpOffset = allocateQPOffset(rois, num_rois, width, height);
     for (int r = 0; r < block_rows; r++) {
         for (int c = 0; c < block_cols; c++) {
 
@@ -32,7 +60,7 @@ void apply_roi_qp(
             int x2 = x1 + block_size;
             int y2 = y1 + block_size;
 
-            float qp = +3.0f; // background
+            float qp = qpOffset; // background
             for (int i = 0; i < num_rois; i++) {
                 if (overlap(
                         x1, y1, x2, y2,
@@ -40,7 +68,7 @@ void apply_roi_qp(
                         rois[i].y1,
                         rois[i].x2,
                         rois[i].y2)) {
-                    qp = -3.0f; // ROI
+                    qp = -qpOffset; // ROI
                     break;
                 }
             }

@@ -39,17 +39,21 @@ static void print_usage(const char *prog)
         "Usage:\n"
         "  %s --input in.yuv --output out.hevc \\\n"
         "     --width W --height H --fps FPS --qp QP --roi-dir DIR \\\n"
-        "     --enable-roi 1  --print-log 0\n\n"
+        "     --enable-roi 1  --preset slow --print-log 0\n\n"
         "Options:\n"
-        "  --input     input YUV420p file\n"
-        "  --output    output HEVC bitstream\n"
-        "  --width     frame width\n"
-        "  --height    frame height\n"
-        "  --fps       frame rate (default: 30)\n"
-        "  --qp        base QP (default: 28)\n"
-        "  --roi-dir   ROI directory (frame_XXXX.txt)\n"
+        "  --input       input YUV420p file\n"
+        "  --output      output HEVC bitstream\n"
+        "  --width       frame width\n"
+        "  --height      frame height\n"
+        "  --fps         frame rate (default: 30)\n"
+        "  --rc          rate control (default: CRF - 2)\n"
+        "  --qp          base QP (default: 28)\n"
+        "  --roi-dir     ROI directory (frame_XXXX.txt)\n"
         "  --enable-roi  apply ROI (1=on, 0=off, default: 1)\n"
-        "  --print-log      print log (1=on, 0=off, default: 0) \n",
+        "  --preset      set the preset mode, (ultrafast, superfast, veryfast, faster, fast, medium, slow, slower)\n"
+        "  --print-log   print log (1=on, 0=off, default: 0) \n"
+        
+        ,
         prog);
 }
 
@@ -58,8 +62,12 @@ int main(int argc, char **argv)
     const char *input = get_arg(argc, argv, "--input");
     const char *output = get_arg(argc, argv, "--output");
     const char *roi_dir = get_arg(argc, argv, "--roi-dir");
-
-    if (!input || !output || !roi_dir)
+    const char *preset = get_arg(argc, argv, "--preset");
+    if (!preset)
+    {
+        preset = "veryfast";
+    }
+    if (!input || !output || !roi_dir || !preset)
     {
         print_usage(argv[0]);
         return -1;
@@ -71,7 +79,9 @@ int main(int argc, char **argv)
     int qp = get_arg_int(argc, argv, "--qp", 27);
     int enable_roi = get_arg_bool(argc, argv, "--enable-roi", 1);
     int print_log = get_arg_bool(argc, argv, "--print-log", 0);
-    printf("qp %d\n", qp);
+    int rc = get_arg_int(argc, argv, "--rc", 2);
+    
+    printf("rc %d qp %d\n", rc, qp);
     printf("enable roi: %d\n", enable_roi);
     FILE *fyuv = fopen(input, "rb");
     FILE *fout = fopen(output, "wb");
@@ -84,18 +94,18 @@ int main(int argc, char **argv)
     /* ---------------- x265 params ---------------- */
 
     x265_param *param = x265_param_alloc();
-    x265_param_default_preset(param, "veryfast", "psnr");
+    x265_param_default_preset(param, preset, "psnr");
 
     param->sourceWidth = width;
     param->sourceHeight = height;
     param->fpsNum = fps;
     param->fpsDenom = 1;
 
-    param->rc.rateControlMode = X265_RC_CRF;
+    param->rc.rateControlMode = rc;
     // param->rc.qp = qp;'=
     // param->rc.rateControlMode = X265_RC_CQP;
     param->rc.qp = qp;
-    param->rc.rfConstant= (double)qp;
+    param->rc.rfConstant = (double)qp;
 
     param->rc.aqMode = 1;
     param->rc.aqStrength = 0.0f;
@@ -128,6 +138,7 @@ int main(int argc, char **argv)
 
     param->bAnnexB = 1;
     param->logLevel = X265_LOG_FULL;
+    // param->frameNumThreads = 1;
     // printf("===== x265 params =====\n");
     // printf("Resolution      : %dx%d\n", param->sourceWidth, param->sourceHeight);
     // printf("FPS             : %d/%d\n", param->fpsNum, param->fpsDenom);
@@ -188,6 +199,12 @@ int main(int argc, char **argv)
     pic.planes[1] = malloc(width * height / 4);
     pic.planes[2] = malloc(width * height / 4);
 
+    /* TÍNH TOÁN KÍCH THƯỚC VÀ CẤP PHÁT 1 LẦN */
+    int qgSize = param->rc.qgSize;
+    int qg_cols = (width + qgSize - 1) / qgSize;
+    int qg_rows = (height + qgSize - 1) / qgSize;
+    int buffer_size = qg_cols * qg_rows * sizeof(float);
+    float *roi_buffer = (float *)malloc(buffer_size); // CẤP PHÁT TẠI ĐÂY
     /* ---------------- encode loop ---------------- */
     int frame = 0;
     while (read_yuv_frame(fyuv, &pic, width, height))
@@ -195,7 +212,8 @@ int main(int argc, char **argv)
         // printf("params rc.aqMode=%d rc.aqStrength=%f rc.qgSize=%d\n", param->rc.aqMode, param->rc.aqStrength, param->rc.qgSize);
 
         pic.pts = (int64_t)frame;
-        pic.quantOffsets = NULL;
+        pic.quantOffsets = roi_buffer;
+        memset(pic.quantOffsets, 0, buffer_size);
         if (enable_roi)
         {
             ROI rois[MAX_ROI];
@@ -205,6 +223,7 @@ int main(int argc, char **argv)
                      "%s/frame_%04d_roi.txt", roi_dir, frame);
 
             int num_rois = load_roi_txt(roi_file, rois);
+            // printf("num roi: %d\n", num_rois);
             if (num_rois > 0)
             {
                 apply_roi_qp(
@@ -213,6 +232,10 @@ int main(int argc, char **argv)
                     num_rois,
                     param->rc.qgSize);
             }
+            // else
+            // {
+            //     pic.quantOffsets = NULL;
+            // }
             // Debug Log
             if (pic.quantOffsets && print_log)
             {
@@ -220,6 +243,10 @@ int main(int argc, char **argv)
                 // (Giữ nguyên đoạn code print map của bạn ở đây nếu muốn)
             }
         }
+        // else
+        // {
+        //     pic.quantOffsets = NULL;
+        // }
 
         if (enable_roi && pic.quantOffsets && print_log)
         {
@@ -262,11 +289,11 @@ int main(int argc, char **argv)
         //         fwrite(nals[i].payload, 1, nals[i].sizeBytes, fout);
         // }
 
-        if (pic.quantOffsets)
-        {
-            free(pic.quantOffsets);
-            pic.quantOffsets = NULL;
-        }
+        // if (pic.quantOffsets)
+        // {
+        //     // free(pic.quantOffsets);
+        //     pic.quantOffsets = NULL;
+        // }
 
         frame++;
     }
@@ -286,7 +313,7 @@ int main(int argc, char **argv)
     // free(pic.planes[0]);
     // free(pic.planes[1]);
     // free(pic.planes[2]);
-
+    free(roi_buffer);
     x265_encoder_close(encoder);
     x265_param_free(param);
     // x265_picture_free(&pic);
