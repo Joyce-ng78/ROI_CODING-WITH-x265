@@ -52,8 +52,9 @@ static void print_usage(const char *prog)
         "  --enable-roi  apply ROI (1=on, 0=off, default: 1)\n"
         "  --preset      set the preset mode, (ultrafast, superfast, veryfast, faster, fast, medium, slow, slower)\n"
         "  --print-log   print log (1=on, 0=off, default: 0) \n"
-        
-        ,
+        "  --rd-level    RD level (1->6)(default: 3)\n\n"
+        "  --rdoq-level  RDOQ level (0->2)(default: 1)\n"
+        "  --psy-rd     psy RD level (0->5)(default: 1)\n",
         prog);
 }
 
@@ -80,9 +81,17 @@ int main(int argc, char **argv)
     int enable_roi = get_arg_bool(argc, argv, "--enable-roi", 1);
     int print_log = get_arg_bool(argc, argv, "--print-log", 0);
     int rc = get_arg_int(argc, argv, "--rc", 2);
+    int rd_level = get_arg_int(argc, argv, "--rd_level", 1);
+    int rdoq_level = get_arg_int(argc, argv, "--rdoq_level", 0);
+    int psy_rd = get_arg_int(argc, argv, "--psy_rd", 2);
+
+    if (print_log)
+    {
+        printf("rd_level %d\n", rd_level);
+        printf("rc %d qp %d\n", rc, qp);
+        printf("enable roi: %d\n", enable_roi);
     
-    printf("rc %d qp %d\n", rc, qp);
-    printf("enable roi: %d\n", enable_roi);
+    }
     FILE *fyuv = fopen(input, "rb");
     FILE *fout = fopen(output, "wb");
     if (!fyuv || !fout)
@@ -102,15 +111,15 @@ int main(int argc, char **argv)
     param->fpsDenom = 1;
 
     param->rc.rateControlMode = rc;
-    // param->rc.qp = qp;'=
-    // param->rc.rateControlMode = X265_RC_CQP;
     param->rc.qp = qp;
     param->rc.rfConstant = (double)qp;
-
     param->rc.aqMode = 1;
     param->rc.aqStrength = 0.0f;
     param->rc.qgSize = 16;
     param->rc.cuTree = 1;
+    param->rdLevel = rd_level;
+    param->rdoqLevel = rdoq_level;
+    param->psyRd = psy_rd;
     // x265_param_default(param);
 
     // strncpy(param->analysisLoad, "analysis.dat", X265_MAX_STRING_SIZE);
